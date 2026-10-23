@@ -22,6 +22,40 @@ The four main screens of the app: language selection (top left), capture (top ri
 
 ---
 
+## Demo GIFs
+
+Short clips from the live demonstration in my project presentation.
+
+### Example 1: Quality Gate Rejects Unusable Photos
+
+<p align="center">
+  <img src="media/demos/demo_quality_gate.gif" alt="Quality gate rejecting blurry, bright and dark photos" width="480"/>
+</p>
+
+A blurry, an overexposed, and a dark photo are each caught on the device before any cloud request, and the user is told how to fix the problem.
+
+---
+
+### Example 2: Ask a Question
+
+<p align="center">
+  <img src="media/demos/demo_ask_question.gif" alt="Asking where am I and getting the answer sidewalk" width="480"/>
+</p>
+
+A usable photo passes the gate. The user asks "where am I", and the model answers "sidewalk" with 91% confidence.
+
+---
+
+### Example 3: Ask in Spanish
+
+<p align="center">
+  <img src="media/demos/demo_spanish.gif" alt="Switching to Spanish and getting the answer vereda" width="480"/>
+</p>
+
+The user switches the language to Spanish and asks a question in Spanish. The question is translated to English for the model, and the answer comes back in Spanish as "vereda" (sidewalk) with 94% confidence.
+
+---
+
 ## What This Project Does
 
 The assistant connects four layers:
@@ -329,7 +363,12 @@ vip-vqa-assistant/
 ├── media/
 │   ├── app_screens.png           # main app screens
 │   ├── settings_screen.png       # settings menu
-│   └── system_architecture.png   # system architecture diagram
+│   ├── system_architecture.png   # system architecture diagram
+│   │
+│   └── demos/
+│       ├── demo_quality_gate.gif
+│       ├── demo_ask_question.gif
+│       └── demo_spanish.gif
 │
 ├── Quality_Gate_Calibration/
 │   ├── Vizwiz_Quality_Gate_Calibration.ipynb   # blur / dark / bright threshold calibration
