@@ -132,6 +132,12 @@ The full training and evaluation pipeline is in [`Training_and_Evaluation/Qwen_F
 
 The app has four main screens: **language selection, capture, question, and answer**, plus a settings menu.
 
+<p align="center">
+  <img src="media/app_screens.png" alt="Main screens: language selection, capture, question input, answer display" width="520"/>
+</p>
+
+Main screens of the app: language selection (top left), capture (top right), question input after the photo passes the quality gate (bottom left), and the spoken answer with confidence and processing time (bottom right).
+
 - Opens from a QR code in the phone's browser, with nothing to install
 - English, Spanish, and French interface, with the choice saved across sessions
 - Photos from the camera or the gallery
@@ -140,6 +146,12 @@ The app has four main screens: **language selection, capture, question, and answ
 - Dark high-contrast theme, large touch targets, screen-reader labels, and spoken cues at every screen change
 - Answer screen shows the model's confidence and processing time
 - **Evaluation mode** in settings turns the quality gate off, which enables the gate-enabled vs gate-disabled comparison
+
+<p align="center">
+  <img src="media/settings_screen.png" alt="Settings menu with language selection and evaluation mode toggle" width="280"/>
+</p>
+
+The settings menu lets users change their language and switch on evaluation mode, which sends every photo directly to the cloud for testing.
 
 Voice input uses the Web Speech API, which works in browsers such as Chrome for Android. On browsers without it, such as Safari on iOS, users can dictate with the keyboard's microphone key or type instead.
 
@@ -280,6 +292,10 @@ The deployed site was published with `flutter build web` followed by `netlify de
 vip-vqa-assistant/
 │
 ├── README.md
+│
+├── media/
+│   ├── app_screens.png           # main app screens
+│   └── settings_screen.png       # settings menu
 │
 ├── Quality_Gate_Calibration/
 │   ├── Vizwiz_Quality_Gate_Calibration.ipynb   # blur / dark / bright threshold calibration
