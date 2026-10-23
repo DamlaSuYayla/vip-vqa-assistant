@@ -2,6 +2,12 @@
 
 A hybrid edge-cloud mobile web assistant that lets visually impaired people (VIP) take a photo, ask a question about it by voice or text, and hear the answer spoken aloud.
 
+<p align="center">
+  <img src="media/app_screens.png" alt="Main screens: language selection, capture, question input, answer display" width="520"/>
+</p>
+
+Main screens of the app: language selection (top left), capture (top right), question input after the photo passes the quality gate (bottom left), and the spoken answer with confidence and processing time (bottom right).
+
 Photos taken by blind and low-vision users are often blurry, too dark, or too bright. Most assistive VQA tools still send these photos to the cloud and return a confident but wrong answer. This project puts a deterministic, learning-free **quality gate** on the device, in front of the model. Unusable photos are caught in the browser and the user is asked, by voice, to retake them. Usable photos are answered by a **Qwen2.5-VL-3B-Instruct** model fine-tuned on VizWiz-VQA with QLoRA.
 
 The app is built with Flutter Web, opens straight from a QR code with nothing to install, and supports English, Spanish, and French.
@@ -50,21 +56,9 @@ A typical interaction:
 
 The device handles everything that is cheap and deterministic: capture, quality screening, translation calls, and audio. The cloud runs only the 3-billion-parameter model.
 
-```mermaid
-flowchart TB
-    subgraph Edge["On-device (browser)"]
-        A[Capture image<br/>camera or gallery] --> B{Quality gate<br/>blur · dark · bright}
-        B -- reject --> R[Retake<br/>spoken prompt]
-        R --> A
-        B -- pass --> T[Translation layer<br/>MyMemory API]
-        T --> S[Spoken answer<br/>ElevenLabs / Web Speech]
-    end
-    subgraph Cloud["Cloud"]
-        F[Netlify Function<br/>adds token server-side] --> M[Fine-tuned Qwen2.5-VL-3B<br/>Hugging Face Inference Endpoint]
-    end
-    T -- question + image --> F
-    M -- answer + confidence --> T
-```
+<p align="center">
+  <img src="media/system_architecture.png" alt="System architecture of the quality-gated hybrid edge-cloud VQA assistant" width="700"/>
+</p>
 
 API keys never reach the browser. Calls to the model and to text-to-speech go through two small Netlify Functions that add the credentials on the server. All traffic is over HTTPS and no images are stored after inference.
 
@@ -131,12 +125,6 @@ The full training and evaluation pipeline is in [`Training_and_Evaluation/Qwen_F
 ## Flutter Web Application
 
 The app has four main screens: **language selection, capture, question, and answer**, plus a settings menu.
-
-<p align="center">
-  <img src="media/app_screens.png" alt="Main screens: language selection, capture, question input, answer display" width="520"/>
-</p>
-
-Main screens of the app: language selection (top left), capture (top right), question input after the photo passes the quality gate (bottom left), and the spoken answer with confidence and processing time (bottom right).
 
 - Opens from a QR code in the phone's browser, with nothing to install
 - English, Spanish, and French interface, with the choice saved across sessions
@@ -295,7 +283,8 @@ vip-vqa-assistant/
 │
 ├── media/
 │   ├── app_screens.png           # main app screens
-│   └── settings_screen.png       # settings menu
+│   ├── settings_screen.png       # settings menu
+│   └── system_architecture.png   # system architecture diagram
 │
 ├── Quality_Gate_Calibration/
 │   ├── Vizwiz_Quality_Gate_Calibration.ipynb   # blur / dark / bright threshold calibration
