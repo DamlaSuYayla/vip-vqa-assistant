@@ -2,13 +2,9 @@
 
 A hybrid edge-cloud mobile web assistant that lets visually impaired people (VIP) take a photo, ask a question about it by voice or text, and hear the answer spoken aloud.
 
-<p align="center">
-  <img src="media/app_screens.png" alt="Main screens: language selection, capture, question input, answer display" width="520"/>
-</p>
+Photos taken by blind and low-vision users are often blurry, too dark, or too bright. Most assistive VQA tools still send these photos to the cloud and return a confident but wrong answer instead of asking the user to try again.
 
-Main screens of the app: language selection (top left), capture (top right), question input after the photo passes the quality gate (bottom left), and the spoken answer with confidence and processing time (bottom right).
-
-Photos taken by blind and low-vision users are often blurry, too dark, or too bright. Most assistive VQA tools still send these photos to the cloud and return a confident but wrong answer. This project puts a deterministic, learning-free **quality gate** on the device, in front of the model. Unusable photos are caught in the browser and the user is asked, by voice, to retake them. Usable photos are answered by a **Qwen2.5-VL-3B-Instruct** model fine-tuned on VizWiz-VQA with QLoRA.
+This project places a deterministic, learning-free **quality gate** on the device, in front of the model. Unusable photos are caught in the browser and the user is asked, by voice, to retake them. Usable photos are answered by a **Qwen2.5-VL-3B-Instruct** model fine-tuned on VizWiz-VQA with QLoRA and served from the cloud.
 
 The app is built with Flutter Web, opens straight from a QR code with nothing to install, and supports English, Spanish, and French.
 
@@ -16,49 +12,74 @@ This repository accompanies my MSc Data Science and Artificial Intelligence diss
 
 ---
 
-## Key Results
+## App Preview
 
-| | Result |
-|---|---|
-| Fine-tuning vs zero-shot | **+9.9 points** overall accuracy (0.638 → 0.737) |
-| Answerability F1 | **+8.4 points** (0.695 → 0.779) |
-| Yes/no accuracy | **+21.7 points** (0.655 → 0.872) |
-| Quality gate rejection rate (VizWiz-QualityIssues) | 38.9% of photos, recall 0.640 |
-| End-to-end response time (gate enabled) | **1.45 s** mean over 10 trials |
+<p align="center">
+  <img src="media/app_screens.png" alt="Main screens: language selection, capture, question input, answer display" width="520"/>
+</p>
+
+The four main screens of the app: language selection (top left), capture (top right), question input after the photo passes the quality gate (bottom left), and the spoken answer with confidence and processing time (bottom right).
 
 ---
 
 ## What This Project Does
 
-The system answers three research questions:
+The assistant connects four layers:
 
-1. **RQ1:** Does a deterministic, learning-free on-device image-quality gate improve the reliability and efficiency of cloud-based VQA for VIP?
-2. **RQ2:** Does domain-specific fine-tuning on VizWiz-VQA improve answer accuracy and answerability detection compared to zero-shot inference?
-3. **RQ3:** Can a hybrid edge-cloud VQA assistant with multilingual voice interaction be effectively deployed on mobile devices?
+1. **Capture**  
+   The user takes a photo with the phone camera or picks one from the gallery.
 
-A typical interaction:
+2. **On-device quality screening**  
+   The photo is checked for blur, darkness, and overexposure in the browser. If it is unusable, the user hears a prompt such as:
 
-```text
-1. The user picks a language (remembered for next time)
-2. The user takes a photo with the camera or picks one from the gallery
-3. The quality gate checks the photo in the browser
-      - unusable  → spoken prompt: "The image is too blurry, please retake"
-      - usable    → continue
-4. The user asks a question by voice or text
-5. Non-English questions are translated to English
-6. The photo and question are sent to the fine-tuned model
-7. The answer is translated back if needed and read aloud
-```
+   ```text
+   The photo is too blurry. Please hold steady and try again.
+   ```
+
+3. **Cloud visual question answering**  
+   The user asks a question by voice or text. The photo and question are sent to the fine-tuned Qwen2.5-VL model, which returns a short answer, or `unanswerable` when the photo does not contain enough information.
+
+4. **Multilingual spoken answer**  
+   Questions in Spanish or French are translated to English before inference, and the answer is translated back and read aloud.
+
+The project is built around three research questions:
+
+- **RQ1:** Does a deterministic, learning-free on-device image-quality gate improve the reliability and efficiency of cloud-based VQA for VIP?
+- **RQ2:** Does domain-specific fine-tuning on VizWiz-VQA improve answer accuracy and answerability detection compared to zero-shot inference?
+- **RQ3:** Can a hybrid edge-cloud VQA assistant with multilingual voice interaction be effectively deployed on mobile devices?
 
 ---
 
 ## System Architecture
 
-The device handles everything that is cheap and deterministic: capture, quality screening, translation calls, and audio. The cloud runs only the 3-billion-parameter model.
-
 <p align="center">
   <img src="media/system_architecture.png" alt="System architecture of the quality-gated hybrid edge-cloud VQA assistant" width="700"/>
 </p>
+
+This diagram shows how computation is split between the device and the cloud. The device handles everything that is cheap and deterministic: capture, quality screening, translation calls, and audio. The cloud runs only the 3-billion-parameter model.
+
+```text
+Capture image
+     |
+     v
+Quality gate (on-device) ──reject──> Spoken retake prompt ──> Capture image
+     |
+   pass
+     v
+Translate question to English (if needed)
+     |
+     v
+Netlify Function (adds token server-side)
+     |
+     v
+Fine-tuned Qwen2.5-VL-3B on Hugging Face Inference Endpoint
+     |
+     v
+Translate answer back (if needed)
+     |
+     v
+Spoken answer (ElevenLabs, fallback: Web Speech API)
+```
 
 API keys never reach the browser. Calls to the model and to text-to-speech go through two small Netlify Functions that add the credentials on the server. All traffic is over HTTPS and no images are stored after inference.
 
@@ -90,7 +111,7 @@ The thresholds were calibrated against the **VizWiz-QualityIssues** dataset (31,
 |---|---|---|---|---|
 | 0.529 | 0.640 | 0.580 | 0.270 | 0.389 |
 
-The calibration code is in [`Quality_Gate_Calibration/`](Quality_Gate_Calibration/).
+For calibration details, see [`Quality_Gate_Calibration/`](Quality_Gate_Calibration/).
 
 ---
 
@@ -118,34 +139,88 @@ The calibration code is in [`Quality_Gate_Calibration/`](Quality_Gate_Calibratio
 
 After training, the LoRA adapters were merged into the base weights and the model was deployed as a private Hugging Face Inference Endpoint. The custom endpoint handler ([`handler.py`](Training_and_Evaluation/handler.py)) takes a base64 image and a question and returns the answer with a confidence score.
 
-The full training and evaluation pipeline is in [`Training_and_Evaluation/Qwen_Finetuned.ipynb`](Training_and_Evaluation/Qwen_Finetuned.ipynb).
+For the full pipeline, see [`Training_and_Evaluation/Qwen_Finetuned.ipynb`](Training_and_Evaluation/Qwen_Finetuned.ipynb).
 
 ---
 
 ## Flutter Web Application
 
-The app has four main screens: **language selection, capture, question, and answer**, plus a settings menu.
-
-- Opens from a QR code in the phone's browser, with nothing to install
-- English, Spanish, and French interface, with the choice saved across sessions
-- Photos from the camera or the gallery
-- Spoken or typed questions
-- Spoken answers via ElevenLabs, with automatic fallback to the browser's built-in speech
-- Dark high-contrast theme, large touch targets, screen-reader labels, and spoken cues at every screen change
-- Answer screen shows the model's confidence and processing time
-- **Evaluation mode** in settings turns the quality gate off, which enables the gate-enabled vs gate-disabled comparison
-
 <p align="center">
   <img src="media/settings_screen.png" alt="Settings menu with language selection and evaluation mode toggle" width="280"/>
 </p>
 
-The settings menu lets users change their language and switch on evaluation mode, which sends every photo directly to the cloud for testing.
+This figure shows the settings menu, where users can change their language and switch on **evaluation mode**. Evaluation mode turns the quality gate off and sends every photo directly to the cloud, which enables the gate-enabled vs gate-disabled comparison.
+
+The app is designed so that no step relies on sight alone:
+
+- dark high-contrast theme and large touch targets,
+- screen-reader labels on every control,
+- spoken cues at every screen change,
+- spoken retake prompts when a photo is rejected,
+- answers read aloud via ElevenLabs, with automatic fallback to the browser's built-in speech.
 
 Voice input uses the Web Speech API, which works in browsers such as Chrome for Android. On browsers without it, such as Safari on iOS, users can dictate with the keyboard's microphone key or type instead.
 
 ---
 
+## Example Interaction
+
+```text
+User:
+[takes a photo of a soup can]
+```
+
+Quality gate:
+
+```text
+Photo looks good. Now ask your question.
+```
+
+```text
+User:
+What is this?
+```
+
+Request sent from the app to the VQA function:
+
+```json
+{
+  "image": "<base64-encoded photo>",
+  "question": "what is this?"
+}
+```
+
+Model response:
+
+```json
+{
+  "answer": "cream mushroom soup",
+  "confidence": 0.98
+}
+```
+
+The answer is read aloud, and the answer screen shows the confidence and the time spent in the gate and the API. This is the interaction shown in the bottom row of the [App Preview](#app-preview).
+
+---
+
+## Key Features
+
+- Deterministic, learning-free on-device quality gate (blur, dark, bright)
+- Thresholds calibrated on VizWiz-QualityIssues
+- Spoken retake prompts, so recovery does not rely on sight
+- Qwen2.5-VL-3B-Instruct fine-tuned with QLoRA on VizWiz-VQA
+- `unanswerable` detection, so the model can abstain
+- Hybrid edge-cloud design with API keys kept server-side
+- English, Spanish, and French interface with translation layer
+- Voice or text questions, spoken answers
+- Opens from a QR code in the browser, with nothing to install
+- Evaluation mode for gate-enabled vs gate-disabled testing
+
+---
+
 ## Evaluation
+
+The system was evaluated on VizWiz-VQA for model accuracy, system reliability and latency, and cross-lingual behaviour.
 
 ### Model Performance (RQ2)
 
@@ -214,6 +289,14 @@ Because the model was fine-tuned only in English, it drifts between languages. T
 
 ---
 
+## Key Findings
+
+- Fine-tuning improved overall accuracy by **9.9 points** and answerability F1 by **8.4 points** over the zero-shot baseline, with the largest gain on yes/no questions (**+21.7 points**).
+- The quality gate did not improve offline accuracy, but it stops unusable photos before they reach the cloud and guides the user to retake them, while keeping the total response time under **1.5 seconds**.
+- The full workflow runs on mobile devices from a browser and a QR code. English-only fine-tuning caused language drift, which the translation layer mitigates.
+
+---
+
 ## Limitations
 
 - **Language drift:** fine-tuning was English-only, so Spanish and French rely on a translation layer.
@@ -233,44 +316,6 @@ Because the model was fine-tuned only in English, it drifts between languages. T
 | Live user evaluation | Study visually impaired participants using the app end to end, including how they respond to retake prompts |
 | Broader quality detection | Extend the gate to framing, occlusion, and off-centre or cropped subjects |
 | Adaptive thresholds | Thresholds that adjust to device, lighting, or user behaviour while staying learning-free and on-device |
-
----
-
-## Running the App Locally
-
-You'll need:
-
-- Flutter SDK (Dart >= 3.4.0 < 4.0.0) with web support
-- Node.js (provides npm)
-- Netlify CLI: `npm install -g netlify-cli`
-
-Both the model call and text-to-speech go through Netlify Functions, so a plain `flutter run` can't reach them. Use `netlify dev`, which serves the app and the functions together.
-
-1. Open a terminal inside the `VIP_Assistant` folder (where `pubspec.yaml` lives).
-
-2. Create a `.env` file there with your own keys:
-
-   ```bash
-   HF_TOKEN=your_hugging_face_token
-   ELEVENLABS_API_KEY=your_elevenlabs_key
-   ```
-
-   - `HF_TOKEN`: used by `vqa.js` to call the authenticated model endpoint. Any valid token from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) works.
-   - `ELEVENLABS_API_KEY`: used by `tts.js` for natural speech. Get one from [elevenlabs.io](https://elevenlabs.io/app/developers/api-keys). Without it, the app falls back to the browser's Web Speech API.
-
-3. Install dependencies and run:
-
-   ```bash
-   flutter pub get
-   flutter build web
-   netlify dev
-   ```
-
-   On first use, `netlify dev` may ask you to run `netlify login`. It reads `.env` automatically and opens the app in your browser.
-
-A full VQA answer also requires the Hugging Face Inference Endpoint to be running. If it is paused, it must be redeployed and `kHfEndpointUrl` in `VIP_Assistant/lib/constants.dart` updated.
-
-The deployed site was published with `flutter build web` followed by `netlify deploy --dir=build/web --prod`, with both keys set as environment variables in the Netlify dashboard.
 
 ---
 
@@ -310,6 +355,44 @@ vip-vqa-assistant/
     ├── netlify.toml
     └── pubspec.yaml
 ```
+
+---
+
+## Running the App Locally
+
+You'll need:
+
+- Flutter SDK (Dart >= 3.4.0 < 4.0.0) with web support
+- Node.js (provides npm)
+- Netlify CLI: `npm install -g netlify-cli`
+
+Both the model call and text-to-speech go through Netlify Functions, so a plain `flutter run` can't reach them. Use `netlify dev`, which serves the app and the functions together.
+
+1. Open a terminal inside the `VIP_Assistant` folder (where `pubspec.yaml` lives).
+
+2. Create a `.env` file there with your own keys:
+
+   ```bash
+   HF_TOKEN=your_hugging_face_token
+   ELEVENLABS_API_KEY=your_elevenlabs_key
+   ```
+
+   - `HF_TOKEN`: used by `vqa.js` to call the authenticated model endpoint. Any valid token from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) works.
+   - `ELEVENLABS_API_KEY`: used by `tts.js` for natural speech. Get one from [elevenlabs.io](https://elevenlabs.io/app/developers/api-keys). Without it, the app falls back to the browser's Web Speech API.
+
+3. Install dependencies and run:
+
+   ```bash
+   flutter pub get
+   flutter build web
+   netlify dev
+   ```
+
+   On first use, `netlify dev` may ask you to run `netlify login`. It reads `.env` automatically and opens the app in your browser.
+
+A full VQA answer also requires the Hugging Face Inference Endpoint to be running. If it is paused, it must be redeployed and `kHfEndpointUrl` in `VIP_Assistant/lib/constants.dart` updated.
+
+The deployed site was published with `flutter build web` followed by `netlify deploy --dir=build/web --prod`, with both keys set as environment variables in the Netlify dashboard.
 
 ---
 
