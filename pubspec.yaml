@@ -1,0 +1,25 @@
+name: vizassist_flutter_web
+description: A Flutter Web visual question answering assistant for visually impaired users.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.7.0
+  get: ^4.6.6
+  image: ^4.3.0
+  image_picker: ^1.1.2
+  js: ^0.7.1
+  shared_preferences: ^2.3.2
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

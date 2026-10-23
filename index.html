@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Visual question answering for visually impaired users.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050505">
+  <title>VQA Assistant</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <div id="app-url" style="display:none">
+    https://vizassistant.netlify.app 
+  </div>
+
+  <script src="flutter_bootstrap.js" async></script>
+
+  <script>
+function startSpeechRecognition(lang, onResult, onError) {
+  const SpeechRecognition = window.SpeechRecognition ||
+                            window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    onError('not_supported');
+    return;
+  }
+  const recognition = new SpeechRecognition();
+  recognition.lang = lang;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.onresult = (e) => onResult(e.results[0][0].transcript);
+  recognition.onerror = (e) => onError(e.error);
+  recognition.start();
+}
+
+// --- iOS Safari audio unlock (Web Audio API) ---
+let sharedAudioCtx = null;
+let currentAudioSource = null;
+
+function getAudioContext() {
+  if (!sharedAudioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    sharedAudioCtx = new AudioContextClass();
+  }
+  return sharedAudioCtx;
+}
+
+function unlockAudio() {
+  try {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+  } catch (_) {
+    // No recovery needed; playAudioFromBase64 falls back to a fresh Audio().
+  }
+
+  try {
+    const primer = new SpeechSynthesisUtterance('');
+    primer.volume = 0;
+    window.speechSynthesis.speak(primer);
+  } catch (_) {
+    // No recovery needed; speakText still gets its own gesture-triggered call.
+  }
+}
+
+function speakText(text, lang, rate, pitch) {
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = lang;
+  utterance.rate = rate || 0.85;
+  utterance.pitch = pitch || 1.0;
+  utterance.volume = 1.0;
+
+  function speak() {
+    const voices = window.speechSynthesis.getVoices();
+
+    
+    const langCode = lang.split('-')[0];
+
+  
+    let voice = voices.find(v => v.lang === lang && !v.localService);
+    if (!voice) voice = voices.find(v => v.lang.startsWith(langCode) && !v.localService);
+    if (!voice) voice = voices.find(v => v.lang === lang);
+    if (!voice) voice = voices.find(v => v.lang.startsWith(langCode));
+
+    if (voice) utterance.voice = voice;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.onvoiceschanged = speak;
+  } else {
+    speak();
+  }
+}
+
+function stopSpeaking() {
+  window.speechSynthesis.cancel();
+  if (currentAudioSource) {
+    try {
+      currentAudioSource.stop();
+    } catch (_) {
+      // Already stopped.
+    }
+    currentAudioSource = null;
+  }
+}
+
+function playAudioFromBase64(base64) {
+  try {
+    const ctx = getAudioContext();
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    ctx.decodeAudioData(bytes.buffer, (audioBuffer) => {
+      if (currentAudioSource) {
+        try {
+          currentAudioSource.stop();
+        } catch (_) {
+          // Already stopped.
+        }
+      }
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      currentAudioSource = source;
+    }, () => {
+      const audio = new Audio('data:audio/mpeg;base64,' + base64);
+      audio.play();
+    });
+  } catch (_) {
+    const audio = new Audio('data:audio/mpeg;base64,' + base64);
+    audio.play();
+  }
+}
+  </script>
+</body>
+</html>

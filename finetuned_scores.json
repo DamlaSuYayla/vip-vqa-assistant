@@ -1,0 +1,13 @@
+{
+  "num_predictions": 2622,
+  "overall_accuracy": 0.7373506229341469,
+  "accuracy_by_answer_type": {
+    "yes/no": 0.8717948717948718,
+    "number": 0.7777777777777778,
+    "other": 0.6610956360259981,
+    "unanswerable": 0.9137254901960783
+  },
+  "answerability_precision": 0.75,
+  "answerability_recall": 0.80927291886196,
+  "answerability_f1": 0.7785098834262545
+}
