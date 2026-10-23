@@ -32,7 +32,7 @@ Short clips from the live demonstration in my project presentation.
   <img src="media/demos/demo_quality_gate.gif" alt="Quality gate rejecting blurry, bright and dark photos" width="480"/>
 </p>
 
-A blurry, an overexposed, and a dark photo are each caught on the device before any cloud request, and the user is told how to fix the problem.
+A blurry, an bright, and a dark photo are each caught on the device before any cloud request, and the user is told how to fix the problem.
 
 ---
 
